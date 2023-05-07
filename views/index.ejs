@@ -1,0 +1,12 @@
+<%- include('templates/header') %>
+  <% if (req.session.authenticated) { %>
+    <h1>Welcome, <%= req.session.name %>
+    </h1>
+    <a href="/members">Member's Only Zone</a>
+    <a href="/logout">Signout</a>
+    <% } else { %>
+      <h1>Welcome!</h1>
+      <a href="signup">Signup</a>
+      <a href="login">Login</a>
+      <% } %>
+        <%- include('templates/footer') %>

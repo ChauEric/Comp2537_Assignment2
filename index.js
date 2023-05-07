@@ -24,6 +24,8 @@ const node_session_secret = process.env.NODE_SESSION_SECRET;
 /* END secret section */
 
 app.set('view engine', 'ejs');
+app.use('/img', express.static('./public/'));
+app.use(express.urlencoded({ extended: false }));
 
 // Gets a reference to the mongo database / creates a mongo client
 const MongoClient = require("mongodb").MongoClient;
@@ -39,9 +41,6 @@ const mongoStore = MongoStore.create({
     }
   });
 
-
-app.use(express.urlencoded({ extended: false }));
-
 // Generates the cookie
 const createSession = (req) => {
     req.session.authenticated = true;
@@ -50,8 +49,6 @@ const createSession = (req) => {
     req.session.cookie.maxAge = expireTime;
   };
 
-app.use('/img', express.static('./public/'));
-
 app.use(session({
     secret: node_session_secret,
     store: mongoStore,
@@ -59,43 +56,47 @@ app.use(session({
     resave: true
   }));
 
-app.get('/', async (req, res) => {
-
-    let html = `
-      <h1>Welcome to this page</h1>
-      <a href="/login">Login</a>
-      <br>
-      <br>
-      <a href="/signup">Signup</a>
-      `;
-  
+  function isValidSession(req) {
     if (req.session.authenticated) {
-      html = `
-        <h1>Welcome, ${req.session.name}</h1>
-        <a href="/members">Member's Only Zone</a>
-        <br>
-        <br>
-        <a href="/logout">Signout</a>
-        `;
+        return true;
     }
-  
-    res.send(html);
+    return false;
+}
+
+function sessionValidation(req,res,next) {
+    if (isValidSession(req)) {
+        next();
+    }
+    else {
+        res.redirect('/login');
+    }
+}
+
+function isAdmin(req) {
+  if (req.session.user_type == 'admin') {
+      return true;
+  }
+  return false;
+}
+
+function adminAuthorization(req, res, next) {
+  if (!isAdmin(req)) {
+      res.status(403);
+      res.render("errorMessage", {error: "Not Authorized"});
+      return;
+  }
+  else {
+      next();
+  }
+}
+
+app.get('/', async (req, res) => {
+    res.render('index', {req: req, active: 'home'});
   });
   
   // Login page
   app.get('/login', (req, res) => {
-    let html = `
-      <h1>Sign In</h1>
-      <form action="/loggingin" method="post">
-        <input type="text" name="email" placeholder="email">
-        <input type="password" name="password" placeholder="password">
-        <button>Submit</button>
-      </form>
-    <br>
-    <p>or</p>
-    <br>
-    <a href="/signup">Signup</a>`;
-    res.send(html);
+    res.render('login');
   });
   
   app.post('/loggingin', async (req, res) => {
@@ -134,11 +135,7 @@ app.get('/', async (req, res) => {
   });
   
   app.get('/invalidLogin', (req, res) => {
-    let html = `
-      <h1>Invalid password</h1>
-      <a href="/login">Try again</a>
-    `;
-    res.send(html);
+    res.render('invalidLogin');
   });
   
   app.get('/logout', (req, res) => {
@@ -148,19 +145,7 @@ app.get('/', async (req, res) => {
   
   // New user signup page
   app.get('/signup', (req, res) => {
-    let html = `
-      <h1>Signup</h1>
-      <form action="/signupSubmit" method="post">
-        <input type="text" name="name" placeholder="name">
-        <input type="password" name="password" placeholder="password">
-        <input type="text" name="email" placeholder="email">
-        <button>Submit</button>
-      </form>
-    <br>
-    <p>or</p>
-    <br>
-    <a href="/login">Login</a>`;
-    res.send(html);
+    res.render('signup');
   });
   
   app.post('/signupSubmit', async (req, res) => {
@@ -204,48 +189,22 @@ app.get('/', async (req, res) => {
     }
   });
   
-  app.get('/members', (req, res) => {
-  
-    const images = [
-      {
-        image: 'Homer.webp',
-        caption: '... well I best be going'
-      },
-      {
-        image: 'NyanCat.webp',
-        caption: 'remember this meme?'
-      },
-      {
-        image: 'clapping-shia.gif',
-        caption: 'we are so happy to see you'
-      }
-    ];
-  
-    if (req.session.authenticated) {
-      let image = images[Math.floor(Math.random() * images.length)];
-      let html = `
-        <img src="img/${image.image}" alt="image">
-        <h1>Hello ${req.session.name}, ${image.caption}</h1>
-        <a href="/logout">Signout</a>
-        <br>
-        <br>
-        <a href="/">Home</a>
-      `;
-      res.send(html);
-    } else {
-      res.redirect('/');
-    }
+  //As per demo, not yet fully functional, members.ejs has been excluded at this time.
+  app.get('/members/:id', (req, res) => {
+    var members = req.params.id;
+
+    res.render("members", {members: members});
   });
   
-  app.use('*', (req, res) => {
-    let html = `
-      <h1>404</h1>
-      <p>Page not found.</p>
-      <br>
-      <a href="/">Home</a>
-    `;
+  app.get('/admin', sessionValidation, adminAuthorization, async (req,res) => {
+    const result = await userCollection.find().project({username: 1, _id: 1}).toArray();
+ 
+    res.render("admin", {users: result});
+});
+
+  app.get("*", (req,res) => {
     res.status(404);
-    res.send(html);
-  });
+    res.render("404");
+  })
   
   app.listen(port, () => console.log(`Listening on port ${port}...`));
