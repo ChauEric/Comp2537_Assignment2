@@ -1,6 +1,3 @@
 /node_modules
 package-lock.json
 .env
-
-# Member's section is currently a work in progress, not ready for commit.
-/views/members.ejs

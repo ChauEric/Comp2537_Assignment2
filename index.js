@@ -41,14 +41,6 @@ const mongoStore = MongoStore.create({
     }
   });
 
-// Generates the cookie
-const createSession = (req) => {
-    req.session.authenticated = true;
-    req.session.name = req.body.name;
-    req.session.email = req.body.email;
-    req.session.cookie.maxAge = expireTime;
-  };
-
 app.use(session({
     secret: node_session_secret,
     store: mongoStore,
@@ -56,7 +48,7 @@ app.use(session({
     resave: true
   }));
 
-  function isValidSession(req) {
+function isValidSession(req) {
     if (req.session.authenticated) {
         return true;
     }
@@ -94,45 +86,56 @@ app.get('/', async (req, res) => {
     res.render('index', {req: req, active: 'home'});
   });
   
+  app.get('/login', (req,res) => {
+    res.render("login");
+});
+
   // Login page
-  app.get('/login', (req, res) => {
-    res.render('login');
-  });
-  
-  app.post('/loggingin', async (req, res) => {
-    const email = req.body.email;
-    const password = req.body.password;
-  
-    const schema = Joi.object(
-      {
-        email: Joi.string().email(),
-        password: Joi.string().max(20).required()
+  app.use('/loggedin', sessionValidation);
+  app.get('/loggedin', (req,res) => {
+      if (!req.session.authenticated) {
+          res.redirect('/login');
       }
-    );
-  
-    const validationResult = schema.validate(req.body);
-    if (validationResult.error != null) {
-      res.redirect("/invalidLogin");
-      return;
-    }
-  
-    const result = await usersCollection.find({ email: email }).project({ email: 1, name: 1, password: 1 }).toArray();
-  
-    if (result.length != 1) {
-      res.redirect('/invalidLogin');
-      return;
-    }
-  
-    const passwordOk = await bcrypt.compare(password, result[0].password)
-    if (passwordOk) {
-      req.body.name = result[0].name;
-      createSession(req);
-      res.redirect('/members');
-    }
-    else {
-      res.redirect("/invalidLogin");
-    }
+      res.render("loggedin");
   });
+  
+ app.post('/loggingin', async (req,res) => {
+    var email = req.body.email;
+    var password = req.body.password;
+    console.log("Logging in 1");
+	const schema = Joi.string().max(20).required();
+	const validationResult = schema.validate(email);
+	if (validationResult.error != null) {
+	   console.log(validationResult.error);
+	   res.redirect("/login");
+	   return;
+	}
+  console.log("Logging in 2");
+	const result = await usersCollection.find({email: email}).project({email: 1, name: 1, password: 1, user_type: 1, _id: 1}).toArray();
+
+	console.log(result);
+	if (result.length != 1) {
+		console.log("user not found");
+		res.redirect("/login");
+		return;
+	}
+	if (await bcrypt.compare(password, result[0].password)) {
+		console.log("correct password");
+		req.session.authenticated = true;
+    req.session.name = result[0].name;
+    req.session.email = req.body.email;
+    req.session.user_type = result[0].user_type;
+    req.session.cookie.maxAge = expireTime;
+
+		res.redirect('/members');
+		return;
+	}
+	else {
+		console.log("incorrect password");
+		res.redirect("/login");
+		return;
+	}
+});
   
   app.get('/invalidLogin', (req, res) => {
     res.render('invalidLogin');
@@ -144,11 +147,11 @@ app.get('/', async (req, res) => {
   });
   
   // New user signup page
-  app.get('/signup', (req, res) => {
-    res.render('signup');
+app.get('/signup', (req, res) => {
+    res.render('signup', { active: '' });
   });
   
-  app.post('/signupSubmit', async (req, res) => {
+app.post('/signupSubmit', async (req, res) => {
   
     const email = req.body.email;
     const name = req.body.name;
@@ -163,44 +166,41 @@ app.get('/', async (req, res) => {
     );
   
     const validationResult = schema.validate(req.body);
-  
-    let html;
+
     let emails = await usersCollection.find({ email: email }).project({ email: 1 }).toArray();
   
     if (validationResult.error != null) {
-  
-      html = `
-        <h1>${validationResult.error.details[0].message}</h1>
-        <a href="/signup">Try again</a>
-        `;
-      res.send(html);
+      res.render(invalidLogin);
   
     } else if (emails.length == 0) {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-      await usersCollection.insertOne({ email: email, name: name, password: hashedPassword });
-      createSession(req);
-      res.redirect('/members');
-    } else {
-      html = `
-          <h1>Sorry, that email is already used</h1>
-          <a href="/signup">Try again</a>
-          `;
-      res.send(html);
-    }
-  });
-  
-  //As per demo, not yet fully functional, members.ejs has been excluded at this time.
-  app.get('/members/:id', (req, res) => {
-    var members = req.params.id;
+      await usersCollection.insertOne({ email: email, name: name, password: hashedPassword, user_type: "user" });
+      req.session.authenticated = true;
+      req.session.name = req.body.name;
+      req.session.email = req.body.email;
+      req.session.user_type = "user";
+      req.session.cookie.maxAge = expireTime;
 
-    res.render("members", {members: members});
+    res.redirect('/members');
+  } else {
+    res.render('errorMessages', { error: '' });
+  }
+});
+  
+app.get('/members', sessionValidation, (req, res) => {
+    const images = ['Homer.webp', 'NyanCat.webp', 'clapping-shia.gif'];
+  
+  res.render('members', { images: images, req: req, active: 'members' });
   });
   
-  app.get('/admin', sessionValidation, adminAuthorization, async (req,res) => {
-    const result = await userCollection.find().project({username: 1, _id: 1}).toArray();
- 
-    res.render("admin", {users: result});
-});
+app.get('/admin', sessionValidation, adminAuthorization, async (req, res) => {
+    const result = await usersCollection.find().project({name: 1, _id: 1, user_type: 1}).toArray();
+res.render('admin', {users: result});
+})
+
+
+
+app.use(express.static(__dirname + "/public"));
 
   app.get("*", (req,res) => {
     res.status(404);
