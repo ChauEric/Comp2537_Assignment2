@@ -102,7 +102,7 @@ app.get('/', async (req, res) => {
  app.post('/loggingin', async (req,res) => {
     var email = req.body.email;
     var password = req.body.password;
-    console.log("Logging in 1");
+
 	const schema = Joi.string().max(20).required();
 	const validationResult = schema.validate(email);
 	if (validationResult.error != null) {
@@ -110,7 +110,7 @@ app.get('/', async (req, res) => {
 	   res.redirect("/login");
 	   return;
 	}
-  console.log("Logging in 2");
+
 	const result = await usersCollection.find({email: email}).project({email: 1, name: 1, password: 1, user_type: 1, _id: 1}).toArray();
 
 	console.log(result);
@@ -170,7 +170,7 @@ app.post('/signupSubmit', async (req, res) => {
     let emails = await usersCollection.find({ email: email }).project({ email: 1 }).toArray();
   
     if (validationResult.error != null) {
-      res.render(invalidLogin);
+      res.render("invalidLogin");
   
     } else if (emails.length == 0) {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -198,7 +198,17 @@ app.get('/admin', sessionValidation, adminAuthorization, async (req, res) => {
 res.render('admin', {users: result});
 })
 
+app.post('/role', async (req, res) => {
+  const { name, action } = req.body;
 
+  if (action == 'promote') {
+    await usersCollection.updateOne({ name }, { $set: { user_type: 'admin' } });
+  } else if (action == 'demote') {
+    await usersCollection.updateOne({ name }, { $set: { user_type: 'user' } });
+  }
+
+  res.redirect('/admin');
+});
 
 app.use(express.static(__dirname + "/public"));
 

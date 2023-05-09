@@ -1,13 +1,24 @@
-
 <%- include("templates/header") %>
 <div class="text-center">
-  <h1 class="mt-5">Users</h1>
-  <br />
-  <ul class="list-group">
+<h2>Users:</h2>
+<ul class="list-group list-group-flush " >
     <% let i=0; %>
     <% for(i=0; i < users.length; i++) { %>
-    <%- include("templates/users", {user: users[i]})  %> 
+        <%- include('templates/users', {user: users[i]})  %>
+        <% var name = users[i].name %>
+        <li class="list-group-item">
+            <form method="post" action="/role">
+                <input type="hidden" name="name" value="<%= name %>">
+                <input type="hidden" name="action" value="promote">
+                <button class="btn btn-success px-3" type="submit">Promote to Admin</button>
+            </form>
+            <form method="post" action="/role">
+                <input type="hidden" name="name" value="<%= name %>">
+                <input type="hidden" name="action" value="demote">
+                <button class="btn btn-danger px-3" type="submit">Demote to User</button>
+            </form>
+        </li>
     <% } %> 
-  </ul>
-  </div>
+</ul>
+</div>
 <%- include("templates/footer") %>

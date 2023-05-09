@@ -1,12 +1,25 @@
 <%- include('templates/header') %>
   <% if (req.session.authenticated) { %>
-    <h1>Welcome, <%= req.session.name %>
-    </h1>
-    <a href="/members">Member's Only Zone</a>
-    <a href="/logout">Signout</a>
-    <% } else { %>
-      <h1>Welcome!</h1>
-      <a href="signup">Signup</a>
-      <a href="login">Login</a>
-      <% } %>
+      <div class="px-4 py-5 my-5 text-center">
+        <h1 class="display-5 fw-bold text-body-emphasis">Welcome, <%= req.session.name %>.</h1>
+        <div class="col-lg-6 mx-auto">
+          <p class="lead mb-4">Member's Only Zone</p>
+          <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="/members" type="button" class="btn btn-primary btn-lg px-4 gap-3">VIP Section</a>
+            <a href="/logout" type="button" class="btn btn-outline-secondary btn-lg px-4">Sign Out</a>
+          </div>
+        </div>
+      </div>
+      <% } else { %>
+        <div class="px-4 py-5 my-5 text-center">
+          <h1 class="display-5 fw-bold text-body-emphasis">Welcome</h1>
+          <div class="col-lg-6 mx-auto">
+            <p class="lead mb-4">Member's Only Zone</p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+              <a href="signUp" type="button" class="btn btn-primary btn-lg px-4 gap-3">Sign Up</a>
+              <a href="login" type="button" class="btn btn-outline-secondary btn-lg px-4">Login</a>
+            </div>
+          </div>
+        </div>
+        <% } %>
         <%- include('templates/footer') %>
