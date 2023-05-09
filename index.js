@@ -148,7 +148,7 @@ app.get('/', async (req, res) => {
   
   // New user signup page
 app.get('/signup', (req, res) => {
-    res.render('signup', { active: '' });
+    res.render('signup');
   });
   
 app.post('/signupSubmit', async (req, res) => {
