@@ -147,8 +147,8 @@ app.get('/', async (req, res) => {
   });
   
   // New user signup page
-app.get('/signup', (req, res) => {
-    res.render('signup');
+app.get('/signUp', (req, res) => {
+    res.render('signUp');
   });
   
 app.post('/signupSubmit', async (req, res) => {
